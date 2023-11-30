@@ -1,0 +1,34 @@
+digraph G {
+label="[Vertex]: [DFN], [RPO], [ND], [HIGHPT]"	S [label ="S: 0, 0, 11, NULL", shape=circle];
+	C [label ="C: 1, 6, 5, S", shape=circle];
+	B [label ="B: 7, 1, 4, S", shape=circle];
+	E [label ="E: 8, 4, 1, B", shape=circle];
+	A [label ="A: 10, 2, 1, B", shape=circle];
+	D [label ="D: 11, 3, 0, B", shape=circle];
+	H [label ="H: 9, 5, 0, B", shape=circle];
+	K [label ="K: 4, 11, 0, S", shape=circle];
+	F [label ="F: 2, 9, 2, S", shape=circle];
+	G [label ="G: 5, 7, 1, S", shape=circle];
+	J [label ="J: 6, 8, 0, S", shape=circle];
+	I [label ="I: 3, 10, 1, S", shape=circle];
+
+	S -> C [label="T"];
+	S -> B [label="T"];
+	C -> F [label="T"];
+	C -> G [label="T"];
+	B -> E [label="T"];
+	B -> A [label="T"];
+	B -> D [label="R", style=dashed, color=blue];
+	E -> H [label="T"];
+	A -> D [label="T"];
+	D -> H [label="C", style=dashed, color=darkgreen];
+	H -> B [label="F", style=dashed, color=red];
+	H -> K [label="C", style=dashed, color=darkgreen];
+	K -> S [label="F", style=dashed, color=red];
+	F -> I [label="T"];
+	G -> J [label="T"];
+	G -> I [label="C", style=dashed, color=darkgreen];
+	J -> I [label="C", style=dashed, color=darkgreen];
+	I -> S [label="F", style=dashed, color=red];
+	I -> K [label="T"];
+}

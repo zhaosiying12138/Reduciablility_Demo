@@ -1,0 +1,21 @@
+digraph G {
+label="[Vertex]: [DFN], [RPO], [ND], [HIGHPT]"	B1 [label ="B1: 0, 0, 7, NULL", shape=circle];
+	B2 [label ="B2: 1, 1, 6, B1", shape=circle];
+	B3 [label ="B3: 2, 2, 5, B1", shape=circle];
+	B4 [label ="B4: 3, 3, 4, B1", shape=circle];
+	B5 [label ="B5: 5, 6, 1, B6", shape=circle];
+	B6 [label ="B6: 4, 4, 3, B1", shape=circle];
+	B7 [label ="B7: 6, 7, 0, NULL", shape=circle];
+	B8 [label ="B8: 7, 5, 0, B1", shape=circle];
+
+	B1 -> B2 [label="T"];
+	B2 -> B3 [label="T"];
+	B3 -> B4 [label="T"];
+	B3 -> B5 [label="R", style=dashed, color=blue];
+	B4 -> B6 [label="T"];
+	B5 -> B6 [label="F", style=dashed, color=red];
+	B5 -> B7 [label="T"];
+	B6 -> B5 [label="T"];
+	B6 -> B8 [label="T"];
+	B8 -> B1 [label="F", style=dashed, color=red];
+}
