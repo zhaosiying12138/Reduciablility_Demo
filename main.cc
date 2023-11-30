@@ -17,6 +17,9 @@ public:
     FATHER = new int[_capacity]();
     ND = new int[_capacity]();
     HIGHPT = new int[_capacity];
+    for (int i = 0; i < _capacity; i++) {
+      HIGHPT[i] = -1;
+    }
   }
 
   ~FlowGraph() {
@@ -35,7 +38,7 @@ public:
 
   void dfs();
 
-  void checkReducibility();
+  int checkReducibility();
 
   // dot -T png -o zsy_test1.png zsy_test1.dot; sxiv zsy_test1.png
   void dumpDot(std::string filename);
@@ -165,10 +168,7 @@ void FlowGraph::dfs() {
   }
 }
 
-void FlowGraph::checkReducibility() {
-  for (int i = 0; i < _capacity; i++) {
-    HIGHPT[i] = -1;
-  }
+int FlowGraph::checkReducibility() {
   for (int w = _capacity - 1; w >= 0; w--) {
     for (int u = 0; u < _capacity; u++) {
       if (edges[u * _capacity + w] == 3) {
@@ -180,9 +180,10 @@ void FlowGraph::checkReducibility() {
           int tmp_u = CHECK.front();
           CHECK.pop();
           if (!isAncestor(w, tmp_u)) {
-            std::cout << vertex_names[w] << " is not the ancestor of "
-                      << vertex_names[tmp_u] << " on DFST, NOT Reduciable!\n";
-            exit(1);
+            std::cout << "[ERROR] " << vertex_names[w]
+                      << " is not the ancestor of " << vertex_names[tmp_u]
+                      << " on DFST, NOT Reduciable! STOP!\n";
+            return 1;
           }
           std::cout << "\t" << vertex_names[w] << " is ancestor of "
                     << vertex_names[tmp_u] << " on DFST\n";
@@ -209,12 +210,34 @@ void FlowGraph::checkReducibility() {
       }
     }
   }
+  for (int u = 0; u < _capacity; u++) {
+    for (int v = 0; v < _capacity; v++) {
+      if (edges[u * _capacity + v] == 4) {
+        std::cout << "Check reverse-frond(" << vertex_names[u] << ", "
+                  << vertex_names[v] << ")\n";
+        if (dfn[u] < dfn[HIGHPT[v]]) {
+          std::cout << "[ERROR] dfn[" << vertex_names[u] << "]: " << dfn[u]
+                    << " < dfn[HIGHPT[" << vertex_names[v]
+                    << "]]: " << dfn[HIGHPT[v]] << ", NOT Reduciable! STOP!\n";
+          return 2;
+        } else {
+          std::cout << "\tdfn[" << vertex_names[u] << "]: " << dfn[u]
+                    << " >= dfn[HIGHPT[" << vertex_names[v]
+                    << "]]: " << dfn[HIGHPT[v]] << "\n";
+        }
+      }
+    }
+  }
+  std::cout << "Test Successful! This flowgraph is Reduciable!\n";
+  return 0;
 }
 
-int FlowGraph::isAncestor(int u, int v) { return (u < v) && (v <= u + ND[u]); }
+int FlowGraph::isAncestor(int u, int v) {
+  return (dfn[u] < dfn[v]) && (dfn[v] <= dfn[u] + ND[u]);
+}
 
-int main() {
-  std::cout << "Hello Reduciability\n";
+void zsy_test1() {
+  std::cout << "\n[Test 1]:\n";
   FlowGraph g(12);
   g.addVertex("S");
   g.addVertex("C");
@@ -228,6 +251,7 @@ int main() {
   g.addVertex("G");
   g.addVertex("J");
   g.addVertex("I");
+
   g.addEdge("S", "B");
   g.addEdge("S", "C");
   g.addEdge("B", "A");
@@ -248,7 +272,88 @@ int main() {
   g.addEdge("K", "S");
   // which matters
   g.addEdge("H", "B");
+
   g.dfs();
   g.checkReducibility();
   g.dumpDot("zsy_test1.dot");
+}
+
+void zsy_test2() {
+  std::cout << "\n[Test 2]:\n";
+  FlowGraph g(12);
+  g.addVertex("S");
+  g.addVertex("C");
+  g.addVertex("B");
+  g.addVertex("E");
+  g.addVertex("A");
+  g.addVertex("D");
+  g.addVertex("H");
+  g.addVertex("K");
+  g.addVertex("F");
+  g.addVertex("G");
+  g.addVertex("J");
+  g.addVertex("I");
+
+  g.addEdge("S", "B");
+  g.addEdge("S", "C");
+  g.addEdge("B", "A");
+  g.addEdge("B", "D");
+  g.addEdge("B", "E");
+  g.addEdge("A", "D");
+  g.addEdge("E", "H");
+  g.addEdge("D", "H");
+  g.addEdge("H", "K");
+  g.addEdge("C", "F");
+  g.addEdge("C", "G");
+  g.addEdge("F", "I");
+  g.addEdge("G", "I");
+  g.addEdge("G", "J");
+  g.addEdge("J", "I");
+  g.addEdge("I", "K");
+  g.addEdge("I", "S");
+  g.addEdge("K", "S");
+  // which matters
+  g.addEdge("H", "E");
+
+  g.dfs();
+  g.checkReducibility();
+  g.dumpDot("zsy_test2.dot");
+}
+
+void zsy_test3() {
+  std::cout << "\n[Test 3]:\n";
+  FlowGraph g(8);
+  g.addVertex("B1");
+  g.addVertex("B2");
+  g.addVertex("B3");
+  g.addVertex("B4");
+  g.addVertex("B5");
+  g.addVertex("B6");
+  g.addVertex("B7");
+  g.addVertex("B8");
+
+  g.addEdge("B1", "B2");
+  g.addEdge("B2", "B3");
+  g.addEdge("B3", "B4");
+  g.addEdge("B3", "B5");
+  g.addEdge("B4", "B6");
+  g.addEdge("B5", "B6");
+  g.addEdge("B5", "B7");
+  g.addEdge("B6", "B5");
+  g.addEdge("B6", "B8");
+  g.addEdge("B8", "B1");
+
+  g.dfs();
+  g.checkReducibility();
+  g.dumpDot("zsy_test3.dot");
+}
+
+int main() {
+  std::cout << "Test Reduciability by zhaosiying12138 from LiuYueCity Academy "
+               "of Sciences\n";
+  zsy_test1();
+  zsy_test2();
+  zsy_test3();
+
+  return 0;
 }
