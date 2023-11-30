@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <queue>
 #include <string>
 #include <vector>
 
@@ -13,9 +14,20 @@ public:
     dfn = new int[_capacity]();
     rpon = new int[_capacity]();
     visited = new int[_capacity]();
+    FATHER = new int[_capacity]();
+    ND = new int[_capacity]();
+    HIGHPT = new int[_capacity];
   }
 
-  ~FlowGraph() { delete[] edges; }
+  ~FlowGraph() {
+    delete[] edges;
+    delete[] dfn;
+    delete[] rpon;
+    delete[] visited;
+    delete[] FATHER;
+    delete[] ND;
+    delete[] HIGHPT;
+  }
 
   void addVertex(std::string str);
 
@@ -23,12 +35,15 @@ public:
 
   void dfs();
 
+  void checkReducibility();
+
   // dot -T png -o zsy_test1.png zsy_test1.dot; sxiv zsy_test1.png
   void dumpDot(std::string filename);
 
 private:
   int findIdByName(std::string str);
-  void dfs(int n);
+  int dfs(int n);
+  int isAncestor(int u, int v);
 
   int _capacity;
   int _size;
@@ -45,6 +60,9 @@ private:
   int *rpon;
   int *visited;
   int dfs_i, dfs_c;
+  int *FATHER;
+  int *ND;
+  int *HIGHPT;
 };
 
 void FlowGraph::addVertex(std::string str) {
@@ -72,10 +90,13 @@ void FlowGraph::dumpDot(std::string filename) {
   outfile.open(filename, std::ios::out | std::ios::trunc);
 
   outfile << "digraph G {\n";
+  outfile << "label=\"[Vertex]: [DFN], [RPO], [ND], [HIGHPT]\"";
   // Vertex: dfn, rpon
   for (int i = 0; i < _size; i++) {
     outfile << "\t" << vertex_names[i] << " [label =\"" << vertex_names[i]
-            << ": " << dfn[i] << ", " << rpon[i] << "\", shape=circle];\n";
+            << ": " << dfn[i] << ", " << rpon[i] << ", " << ND[i] << ", "
+            << (HIGHPT[i] == -1 ? "NULL" : vertex_names[HIGHPT[i]])
+            << "\", shape=circle];\n";
   }
   outfile << "\n";
 
@@ -92,7 +113,7 @@ void FlowGraph::dumpDot(std::string filename) {
         } else if (edges[i * _capacity + j] == 5) {
           outfile << " [label=\"C\", style=dashed, color=darkgreen];\n";
         } else {
-            assert(1);
+          assert(1);
         }
       }
     }
@@ -103,20 +124,23 @@ void FlowGraph::dumpDot(std::string filename) {
   outfile.close();
 }
 
-void FlowGraph::dfs(int n) {
+int FlowGraph::dfs(int n) {
   visited[n] = 1;
   dfn[n] = dfs_i++;
   for (int s = 0; s < _size; s++) {
     if (edges[n * _capacity + s] > 0 && visited[s] == 0) {
       assert(edges[n * _capacity + s] == 1);
       edges[n * _capacity + s] = 2;
-      dfs(s);
+      FATHER[s] = n;
+      ND[n] += (dfs(s) + 1);
     }
   }
   rpon[n] = dfs_c--;
+  return ND[n];
 }
 
 void FlowGraph::dfs() {
+  FATHER[0] = -1;
   dfs_i = 0;
   dfs_c = _capacity - 1;
   dfs(0);
@@ -134,12 +158,60 @@ void FlowGraph::dfs() {
           // cross links
           edges[i * _capacity + j] = 5;
         } else {
-            assert(1);
+          assert(1);
         }
       }
     }
   }
 }
+
+void FlowGraph::checkReducibility() {
+  for (int i = 0; i < _capacity; i++) {
+    HIGHPT[i] = -1;
+  }
+  for (int w = _capacity - 1; w >= 0; w--) {
+    for (int u = 0; u < _capacity; u++) {
+      if (edges[u * _capacity + w] == 3) {
+        std::cout << "Check frond(" << vertex_names[u] << ", "
+                  << vertex_names[w] << ")\n";
+        std::queue<int> CHECK{};
+        CHECK.push(u);
+        while (!CHECK.empty()) {
+          int tmp_u = CHECK.front();
+          CHECK.pop();
+          if (!isAncestor(w, tmp_u)) {
+            std::cout << vertex_names[w] << " is not the ancestor of "
+                      << vertex_names[tmp_u] << " on DFST, NOT Reduciable!\n";
+            exit(1);
+          }
+          std::cout << "\t" << vertex_names[w] << " is ancestor of "
+                    << vertex_names[tmp_u] << " on DFST\n";
+          while (tmp_u != w) {
+            if (HIGHPT[tmp_u] == -1) {
+              HIGHPT[tmp_u] = w;
+              std::cout << "\tSet HIGHPT[" << vertex_names[tmp_u]
+                        << "] := " << vertex_names[w] << "\n";
+              for (int tmp_v = 0; tmp_v < _capacity; tmp_v++) {
+                if (edges[tmp_v * _capacity + tmp_u] == 5) {
+                  std::cout << "\tFound Cross-link(" << vertex_names[tmp_v]
+                            << ", " << vertex_names[tmp_u] << ") and add "
+                            << vertex_names[tmp_v] << " to CHECK\n";
+                  CHECK.push(tmp_v);
+                }
+              }
+            } else {
+              std::cout << "\tHIGHPT[" << vertex_names[tmp_u]
+                        << "] has been set, SKIP!\n";
+            }
+            tmp_u = FATHER[tmp_u];
+          }
+        }
+      }
+    }
+  }
+}
+
+int FlowGraph::isAncestor(int u, int v) { return (u < v) && (v <= u + ND[u]); }
 
 int main() {
   std::cout << "Hello Reduciability\n";
@@ -177,5 +249,6 @@ int main() {
   // which matters
   g.addEdge("H", "B");
   g.dfs();
+  g.checkReducibility();
   g.dumpDot("zsy_test1.dot");
 }
