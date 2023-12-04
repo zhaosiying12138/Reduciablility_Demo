@@ -44,6 +44,10 @@ public:
       successors[u].erase(u);
     }
 
+    int checkSelfCycle(int u) {
+      return precessors[u].find(u) != precessors[u].end();
+    }
+
     void T2(int v) {
       // Do not coalesce entry node
       assert(v != 0);
@@ -71,6 +75,7 @@ public:
     }
 
     void dump() {
+      std::cout << "### Dump Collapse Result ###\n";
       std::cout << "vextex_names: ";
       for (int i = 0; i < _size; i++) {
         if (coalesced[i] == 1)
@@ -107,6 +112,7 @@ public:
     }
 
     int checkCollapsibilitySlowly() {
+      std::cout << "### Check Collapsibility Slowly in O(V^2) ###\n";
       int changed = 1;
       for (int round = 1; changed == 1; round++) {
         std::cout << "Round " << round << ":\n";
@@ -130,6 +136,8 @@ public:
             changed = 1;
           }
         }
+        if (!changed)
+          std::cout << "Done!\n";
       }
       int unCoalescedCount = getUncoalescedCount();
       std::cout << "#UnCollased Node is " << unCoalescedCount << "\n";
@@ -143,6 +151,19 @@ public:
     int *coalesced;
     std::vector<std::set<int>> precessors{};
     std::vector<std::set<int>> successors{};
+  };
+
+  class ReductionID {
+  public:
+    ReductionID(int highpt, int snumber) : _highpt(highpt), _snumber(snumber) {}
+
+    bool operator<(const ReductionID &rhs) const {
+      return ((_highpt > rhs._highpt) ||
+              ((_highpt == rhs._highpt) && (_snumber < rhs._snumber)));
+    }
+
+    int _highpt;
+    int _snumber;
   };
 
   explicit FlowGraph(int n) : _capacity(n), _size(0) {
@@ -180,6 +201,29 @@ public:
 
   // dot -T png -o zsy_test1.png zsy_test1.dot; sxiv zsy_test1.png
   void dumpDot(std::string filename);
+
+  void dumpReductionList() {
+    std::cout << "### Dump Reduction List ###\n";
+    for (auto it : reduction_list) {
+      std::cout << vertex_names[it.second] << "(" << it.first._highpt << ", "
+                << it.first._snumber << "), ";
+    }
+    std::cout << "\n";
+  }
+
+  void doReduceAsList(AdjacentView &adjview) {
+    std::cout << "### Do Reduction As List Illustrates ###\n";
+    for (auto it : reduction_list) {
+      int u = it.second;
+      if (adjview.checkSelfCycle(u)) {
+        adjview.T1(u);
+      }
+      adjview.T2(u);
+    }
+    assert(adjview.getUncoalescedCount() == 1);
+  }
+
+  std::map<ReductionID, int> reduction_list;
 
 private:
   int findIdByName(std::string str);
@@ -309,6 +353,8 @@ void FlowGraph::dfs() {
 }
 
 int FlowGraph::checkReducibility() {
+  std::cout << "### Check Reducibility ###\n";
+  reduction_list.clear();
   for (int w_id = _capacity - 1; w_id >= 0; w_id--) {
     int w = dfn_reverse[w_id];
     for (int u = 0; u < _capacity; u++) {
@@ -331,6 +377,7 @@ int FlowGraph::checkReducibility() {
           while (tmp_u != w) {
             if (HIGHPT[tmp_u] == -1) {
               HIGHPT[tmp_u] = w;
+              reduction_list.emplace(ReductionID{dfn[w], rpon[tmp_u]}, tmp_u);
               std::cout << "\tSet HIGHPT[" << vertex_names[tmp_u]
                         << "] := " << vertex_names[w] << "\n";
               for (int tmp_v = 0; tmp_v < _capacity; tmp_v++) {
@@ -414,14 +461,20 @@ void zsy_test1() {
   // which matters
   g.addEdge("H", "B");
 
-  FlowGraph::AdjacentView g_adjview{g};
-  // g_adjview.dump();
-  g_adjview.checkCollapsibilitySlowly();
-  g_adjview.dump();
+  FlowGraph::AdjacentView g_adjview1{g};
+  FlowGraph::AdjacentView g_adjview2{g};
+  g_adjview1.checkCollapsibilitySlowly();
+  std::cout << "\n";
+  g_adjview1.dump();
+  std::cout << "\n";
 
-  // g.dfs();
-  // g.checkReducibility();
-  // g.dumpDot("zsy_test1.dot");
+  g.dfs();
+  g.checkReducibility();
+  g.dumpDot("zsy_test1.dot");
+  std::cout << "\n";
+  g.dumpReductionList();
+  std::cout << "\n";
+  g.doReduceAsList(g_adjview2);
 }
 
 void zsy_test2() {
@@ -490,20 +543,21 @@ void zsy_test3() {
   g.addEdge("B8", "B1");
 
   FlowGraph::AdjacentView g_adjview{g};
-  // g_adjview.dump();
   g_adjview.checkCollapsibilitySlowly();
+  std::cout << "\n";
   g_adjview.dump();
+  std::cout << "\n";
 
-  // g.dfs();
-  // g.checkReducibility();
-  // g.dumpDot("zsy_test3.dot");
+  g.dfs();
+  g.checkReducibility();
+  g.dumpDot("zsy_test3.dot");
 }
 
 int main() {
   std::cout << "Test Reduciability by zhaosiying12138 from LiuYueCity Academy "
                "of Sciences\n";
   zsy_test1();
-  //  zsy_test2();
+  zsy_test2();
   zsy_test3();
 
   return 0;
