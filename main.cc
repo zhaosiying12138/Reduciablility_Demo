@@ -12,6 +12,7 @@ public:
   explicit FlowGraph(int n) : _capacity(n), _size(0) {
     edges = new int[_capacity * _capacity]();
     dfn = new int[_capacity]();
+    dfn_reverse = new int[_capacity]();
     rpon = new int[_capacity]();
     visited = new int[_capacity]();
     FATHER = new int[_capacity]();
@@ -25,6 +26,7 @@ public:
   ~FlowGraph() {
     delete[] edges;
     delete[] dfn;
+    delete[] dfn_reverse;
     delete[] rpon;
     delete[] visited;
     delete[] FATHER;
@@ -60,6 +62,7 @@ private:
   // 5: cross links
   int *edges;
   int *dfn;
+  int *dfn_reverse;
   int *rpon;
   int *visited;
   int dfs_i, dfs_c;
@@ -130,6 +133,7 @@ void FlowGraph::dumpDot(std::string filename) {
 int FlowGraph::dfs(int n) {
   visited[n] = 1;
   dfn[n] = dfs_i++;
+  dfn_reverse[dfn[n]] = n;
   for (int s = 0; s < _size; s++) {
     if (edges[n * _capacity + s] > 0 && visited[s] == 0) {
       assert(edges[n * _capacity + s] == 1);
@@ -169,7 +173,8 @@ void FlowGraph::dfs() {
 }
 
 int FlowGraph::checkReducibility() {
-  for (int w = _capacity - 1; w >= 0; w--) {
+  for (int w_id = _capacity - 1; w_id >= 0; w_id--) {
+    int w = dfn_reverse[w_id];
     for (int u = 0; u < _capacity; u++) {
       if (edges[u * _capacity + w] == 3) {
         std::cout << "Check frond(" << vertex_names[u] << ", "
