@@ -759,6 +759,82 @@ void zsy_test1_union_find() {
   g.doReduceAsList(g_adjview2);
 }
 
+void zsy_test2_union_find() {
+  std::cout << "\n[Test 2 Integrated with Union-Find]:\n";
+  FlowGraph g(12);
+  g.addVertex("S");
+  g.addVertex("C");
+  g.addVertex("B");
+  g.addVertex("E");
+  g.addVertex("A");
+  g.addVertex("D");
+  g.addVertex("H");
+  g.addVertex("K");
+  g.addVertex("F");
+  g.addVertex("G");
+  g.addVertex("J");
+  g.addVertex("I");
+
+  g.addEdge("S", "B");
+  g.addEdge("S", "C");
+  g.addEdge("B", "A");
+  g.addEdge("B", "D");
+  g.addEdge("B", "E");
+  g.addEdge("A", "D");
+  g.addEdge("E", "H");
+  g.addEdge("D", "H");
+  g.addEdge("H", "K");
+  g.addEdge("C", "F");
+  g.addEdge("C", "G");
+  g.addEdge("F", "I");
+  g.addEdge("G", "I");
+  g.addEdge("G", "J");
+  g.addEdge("J", "I");
+  g.addEdge("I", "K");
+  g.addEdge("I", "S");
+  g.addEdge("K", "S");
+  // which matters
+  g.addEdge("H", "E");
+
+  g.dfs();
+  g.checkReducibilityWithUnionFind();
+  g.dumpDot("zsy_test2.dot");
+}
+
+void zsy_test3_union_find() {
+  std::cout << "\n[Test 3 Integrated with Union-Find]:\n";
+  FlowGraph g(8);
+  g.addVertex("B1");
+  g.addVertex("B2");
+  g.addVertex("B3");
+  g.addVertex("B4");
+  g.addVertex("B5");
+  g.addVertex("B6");
+  g.addVertex("B7");
+  g.addVertex("B8");
+
+  g.addEdge("B1", "B2");
+  g.addEdge("B2", "B3");
+  g.addEdge("B3", "B4");
+  g.addEdge("B3", "B5");
+  g.addEdge("B4", "B6");
+  g.addEdge("B5", "B6");
+  g.addEdge("B5", "B7");
+  g.addEdge("B6", "B5");
+  g.addEdge("B6", "B8");
+  g.addEdge("B8", "B1");
+
+  FlowGraph::AdjacentView g_adjview{g};
+  g_adjview.checkCollapsibilitySlowly();
+  std::cout << "\n";
+  g_adjview.dump();
+  std::cout << "\n";
+
+  g.dfs();
+  g.checkReducibilityWithUnionFind();
+  g.dumpDot("zsy_test3.dot");
+}
+
 int main() {
   std::cout << "Test Reduciability by zhaosiying12138 from LiuYueCity Academy "
                "of Sciences\n";
@@ -767,6 +843,8 @@ int main() {
   zsy_test3();
   zsy_unittest_union_find();
   zsy_test1_union_find();
+  zsy_test2_union_find();
+  zsy_test3_union_find();
 
   return 0;
 }
