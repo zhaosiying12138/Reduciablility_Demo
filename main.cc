@@ -3,12 +3,148 @@
 #include <iostream>
 #include <map>
 #include <queue>
+#include <set>
 #include <string>
 #include <vector>
 
 class FlowGraph {
 
 public:
+  class AdjacentView {
+  public:
+    explicit AdjacentView(const FlowGraph &graph)
+        : _graph(graph), _size(graph._size),
+          _coalesced_vertex_names(graph.vertex_names) {
+      coalesced = new int[_size]();
+      for (int i = 0; i < _size; i++) {
+        std::set<int> tmp_set{};
+        precessors.push_back(tmp_set);
+      }
+      for (int i = 0; i < _size; i++) {
+        std::set<int> tmp_set{};
+        successors.push_back(tmp_set);
+      }
+      for (int u = 0; u < _size; u++) {
+        for (int v = 0; v < _size; v++) {
+          if (graph.edges[u * _size + v] > 0) {
+            precessors[v].insert(u);
+            successors[u].insert(v);
+          }
+        }
+      }
+    }
+
+    ~AdjacentView() { delete[] coalesced; }
+
+    void T1(int u) {
+      std::cout << "T1(" << _coalesced_vertex_names[u] << ")\n";
+      assert(precessors[u].find(u) != precessors[u].end() &&
+             successors[u].find(u) != successors[u].end());
+      precessors[u].erase(u);
+      successors[u].erase(u);
+    }
+
+    void T2(int v) {
+      // Do not coalesce entry node
+      assert(v != 0);
+      // only edge entering v from u
+      assert(precessors[v].size() == 1);
+      int u = *(precessors[v].begin());
+      // u != v, otherwise call T1() transformation
+      assert(u != v);
+      // this also means v don't have a v->v self-cycle
+      assert(successors[v].find(v) == successors[v].end());
+      // trival test
+      assert(successors[u].find(v) != successors[u].end());
+      std::cout << "T2(" << _coalesced_vertex_names[u] << ", "
+                << _coalesced_vertex_names[v] << ")\n";
+
+      // coalesce v to u
+      coalesced[v] = 1;
+      successors[u].erase(v);
+      for (int v_succ : successors[v]) {
+        precessors[v_succ].erase(v);
+        precessors[v_succ].insert(u);
+      }
+      successors[u].insert(successors[v].begin(), successors[v].end());
+      _coalesced_vertex_names[u] += "|" + _coalesced_vertex_names[v];
+    }
+
+    void dump() {
+      std::cout << "vextex_names: ";
+      for (int i = 0; i < _size; i++) {
+        if (coalesced[i] == 1)
+          continue;
+        std::cout << _coalesced_vertex_names[i] << ", ";
+      }
+      std::cout << "\n";
+
+      for (int u = 0; u < _size; u++) {
+        if (coalesced[u] == 1)
+          continue;
+        std::cout << "precessor[" << _coalesced_vertex_names[u] << "]: ";
+        for (auto v : precessors[u]) {
+          std::cout << _coalesced_vertex_names[v] << ", ";
+        }
+        std::cout << "\n";
+
+        std::cout << "successors[" << _coalesced_vertex_names[u] << "]: ";
+        for (auto v : successors[u]) {
+          std::cout << _coalesced_vertex_names[v] << ", ";
+        }
+        std::cout << "\n";
+      }
+    }
+
+    int getUncoalescedCount() {
+      int cnt = 0;
+      for (int i = 0; i < _size; i++) {
+        if (coalesced[i] == 0) {
+          cnt++;
+        }
+      }
+      return cnt;
+    }
+
+    int checkCollapsibilitySlowly() {
+      int changed = 1;
+      for (int round = 1; changed == 1; round++) {
+        std::cout << "Round " << round << ":\n";
+        changed = 0;
+        for (int u = 0; u < _size; u++) {
+          if (coalesced[u] == 1)
+            continue;
+          if (successors[u].find(u) != successors[u].end()) {
+            T1(u);
+            changed = 1;
+          }
+        }
+        // T2 transformation need skip the entry node!
+        for (int v = 1; v < _size; v++) {
+          if (coalesced[v] == 1)
+            continue;
+          // no need to check self-cycle v->v since it already erased by T1
+          // transformation just now
+          if (precessors[v].size() == 1) {
+            T2(v);
+            changed = 1;
+          }
+        }
+      }
+      int unCoalescedCount = getUncoalescedCount();
+      std::cout << "#UnCollased Node is " << unCoalescedCount << "\n";
+      return unCoalescedCount == 1;
+    }
+
+  private:
+    const FlowGraph &_graph;
+    int _size;
+    std::vector<std::string> _coalesced_vertex_names;
+    int *coalesced;
+    std::vector<std::set<int>> precessors{};
+    std::vector<std::set<int>> successors{};
+  };
+
   explicit FlowGraph(int n) : _capacity(n), _size(0) {
     edges = new int[_capacity * _capacity]();
     dfn = new int[_capacity]();
@@ -278,9 +414,14 @@ void zsy_test1() {
   // which matters
   g.addEdge("H", "B");
 
-  g.dfs();
-  g.checkReducibility();
-  g.dumpDot("zsy_test1.dot");
+  FlowGraph::AdjacentView g_adjview{g};
+  // g_adjview.dump();
+  g_adjview.checkCollapsibilitySlowly();
+  g_adjview.dump();
+
+  // g.dfs();
+  // g.checkReducibility();
+  // g.dumpDot("zsy_test1.dot");
 }
 
 void zsy_test2() {
@@ -348,16 +489,21 @@ void zsy_test3() {
   g.addEdge("B6", "B8");
   g.addEdge("B8", "B1");
 
-  g.dfs();
-  g.checkReducibility();
-  g.dumpDot("zsy_test3.dot");
+  FlowGraph::AdjacentView g_adjview{g};
+  // g_adjview.dump();
+  g_adjview.checkCollapsibilitySlowly();
+  g_adjview.dump();
+
+  // g.dfs();
+  // g.checkReducibility();
+  // g.dumpDot("zsy_test3.dot");
 }
 
 int main() {
   std::cout << "Test Reduciability by zhaosiying12138 from LiuYueCity Academy "
                "of Sciences\n";
   zsy_test1();
-  zsy_test2();
+  //  zsy_test2();
   zsy_test3();
 
   return 0;
