@@ -235,6 +235,8 @@ public:
 
   int checkReducibility();
 
+  int checkReducibilityWithUnionFind();
+
   // dot -T png -o zsy_test1.png zsy_test1.dot; sxiv zsy_test1.png
   void dumpDot(std::string filename);
 
@@ -265,6 +267,7 @@ private:
   int findIdByName(std::string str);
   int dfs(int n);
   int isAncestor(int u, int v);
+  int isProperAncestor(int u, int v);
 
   int _capacity;
   int _size;
@@ -457,7 +460,100 @@ int FlowGraph::checkReducibility() {
   return 0;
 }
 
+int FlowGraph::checkReducibilityWithUnionFind() {
+  std::cout << "### Check Reducibility With Union-Find ###\n";
+  reduction_list.clear();
+  for (int w_id = _capacity - 1; w_id >= 0; w_id--) {
+    int w = dfn_reverse[w_id];
+    for (int u = 0; u < _capacity; u++) {
+      if (edges[u * _capacity + w] == 3) {
+        std::cout << "Check frond(" << vertex_names[u] << ", "
+                  << vertex_names[w] << ")\n";
+        std::queue<int> CHECK{};
+        CHECK.push(u);
+        while (!CHECK.empty()) {
+          int tmp_u = CHECK.front();
+          CHECK.pop();
+          int union_find_u = _uf.find(tmp_u);
+          if (union_find_u != tmp_u) {
+            std::cout << "[Optimize 1] Jump from " << vertex_names[tmp_u]
+                      << " directly to " << vertex_names[union_find_u]
+                      << " according to Union-Find\n";
+            tmp_u = union_find_u;
+          }
+          if (!isAncestor(w, tmp_u)) {
+            std::cout << "[ERROR] " << vertex_names[w]
+                      << " is not the ancestor of " << vertex_names[tmp_u]
+                      << " on DFST, NOT Reduciable! STOP!\n";
+            return 1;
+          }
+          std::cout << "\t" << vertex_names[w] << " is ancestor of "
+                    << vertex_names[tmp_u] << " on DFST\n";
+          while (tmp_u != w) {
+            union_find_u = _uf.find(tmp_u);
+            if (union_find_u != tmp_u) {
+              std::cout << "[Optimize 2] Jump from " << vertex_names[tmp_u]
+                        << " directly to " << vertex_names[union_find_u]
+                        << " according to Union-Find\n";
+              tmp_u = union_find_u;
+              // [ZSY_Debug] assert tmp_u can not be proper ancestor of w!
+              assert(isProperAncestor(tmp_u, w) == 0);
+              if (tmp_u == w) {
+                break;
+              }
+            }
+            if (HIGHPT[tmp_u] == -1) {
+              HIGHPT[tmp_u] = w;
+              reduction_list.emplace(ReductionID{dfn[w], rpon[tmp_u]}, tmp_u);
+              std::cout << "\tSet HIGHPT[" << vertex_names[tmp_u]
+                        << "] := " << vertex_names[w] << "\n";
+              for (int tmp_v = 0; tmp_v < _capacity; tmp_v++) {
+                if (edges[tmp_v * _capacity + tmp_u] == 5) {
+                  std::cout << "\tFound Cross-link(" << vertex_names[tmp_v]
+                            << ", " << vertex_names[tmp_u] << ") and add "
+                            << vertex_names[tmp_v] << " to CHECK\n";
+                  CHECK.push(tmp_v);
+                }
+              }
+            } else {
+              std::cout << "\tHIGHPT[" << vertex_names[tmp_u]
+                        << "] has been set, SKIP!\n";
+            }
+            int tmp_father_u = FATHER[tmp_u];
+            _uf.make_union(tmp_u, tmp_father_u);
+            tmp_u = tmp_father_u;
+          }
+        }
+      }
+    }
+  }
+  for (int u = 0; u < _capacity; u++) {
+    for (int v = 0; v < _capacity; v++) {
+      if (edges[u * _capacity + v] == 4) {
+        std::cout << "Check reverse-frond(" << vertex_names[u] << ", "
+                  << vertex_names[v] << ")\n";
+        if (dfn[u] < dfn[HIGHPT[v]]) {
+          std::cout << "[ERROR] dfn[" << vertex_names[u] << "]: " << dfn[u]
+                    << " < dfn[HIGHPT[" << vertex_names[v]
+                    << "]]: " << dfn[HIGHPT[v]] << ", NOT Reduciable! STOP!\n";
+          return 2;
+        } else {
+          std::cout << "\tdfn[" << vertex_names[u] << "]: " << dfn[u]
+                    << " >= dfn[HIGHPT[" << vertex_names[v]
+                    << "]]: " << dfn[HIGHPT[v]] << "\n";
+        }
+      }
+    }
+  }
+  std::cout << "Test Successful! This flowgraph is Reduciable!\n";
+  return 0;
+}
+
 int FlowGraph::isAncestor(int u, int v) {
+  return (dfn[u] <= dfn[v]) && (dfn[v] <= dfn[u] + ND[u]);
+}
+
+int FlowGraph::isProperAncestor(int u, int v) {
   return (dfn[u] < dfn[v]) && (dfn[v] <= dfn[u] + ND[u]);
 }
 
@@ -604,6 +700,10 @@ void zsy_unittest_union_find() {
   uf.make_union(2, 3);
   std::cout << uf.find(0) << ", " << uf.find(1) << ", " << uf.find(2) << ", "
             << uf.find(3) << ", " << uf.find(4) << "\n";
+  std::cout << "Union(4, 3)\n";
+  uf.make_union(4, 3);
+  std::cout << uf.find(0) << ", " << uf.find(1) << ", " << uf.find(2) << ", "
+            << uf.find(3) << ", " << uf.find(4) << "\n";
 }
 
 void zsy_test1_union_find() {
@@ -651,7 +751,7 @@ void zsy_test1_union_find() {
   std::cout << "\n";
 
   g.dfs();
-  g.checkReducibility();
+  g.checkReducibilityWithUnionFind();
   g.dumpDot("zsy_test1.dot");
   std::cout << "\n";
   g.dumpReductionList();
