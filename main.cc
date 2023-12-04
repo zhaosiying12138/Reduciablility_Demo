@@ -166,7 +166,43 @@ public:
     int _snumber;
   };
 
-  explicit FlowGraph(int n) : _capacity(n), _size(0) {
+  class Union_Find_Helper {
+  public:
+    explicit Union_Find_Helper(int size) : _size(size) {
+      data = new int *[_size];
+      for (int i = 0; i < _size; i++) {
+        int *tmp = new int;
+        *tmp = i;
+        data[i] = tmp;
+      }
+    }
+
+    // Use set to avoid double free, O(V*logV) complexity, it 's just as well
+    // that it will deconstruct only once.
+    ~Union_Find_Helper() {
+      std::set<int *> tmp_set{};
+      for (int i = 0; i < _size; i++) {
+        tmp_set.insert(data[i]);
+      }
+      for (int *tmp_data : tmp_set) {
+        delete tmp_data;
+      }
+      delete[] data;
+    }
+
+    int find(int u) { return *(data[u]); }
+
+    void make_union(int u, int v) {
+      *(data[u]) = *(data[v]);
+      data[v] = data[u];
+    }
+
+  private:
+    int _size;
+    int **data;
+  };
+
+  explicit FlowGraph(int n) : _capacity(n), _size(0), _uf(n) {
     edges = new int[_capacity * _capacity]();
     dfn = new int[_capacity]();
     dfn_reverse = new int[_capacity]();
@@ -249,6 +285,7 @@ private:
   int *FATHER;
   int *ND;
   int *HIGHPT;
+  Union_Find_Helper _uf;
 };
 
 void FlowGraph::addVertex(std::string str) {
@@ -553,12 +590,83 @@ void zsy_test3() {
   g.dumpDot("zsy_test3.dot");
 }
 
+void zsy_unittest_union_find() {
+  std::cout << "\n[UnitTest of Union-Find]\n";
+  std::cout << "Union_Find_Helper{5}\n";
+  FlowGraph::Union_Find_Helper uf{5};
+  std::cout << uf.find(0) << ", " << uf.find(1) << ", " << uf.find(2) << ", "
+            << uf.find(3) << ", " << uf.find(4) << "\n";
+  std::cout << "Union(1, 2)\n";
+  uf.make_union(1, 2);
+  std::cout << uf.find(0) << ", " << uf.find(1) << ", " << uf.find(2) << ", "
+            << uf.find(3) << ", " << uf.find(4) << "\n";
+  std::cout << "Union(2, 3)\n";
+  uf.make_union(2, 3);
+  std::cout << uf.find(0) << ", " << uf.find(1) << ", " << uf.find(2) << ", "
+            << uf.find(3) << ", " << uf.find(4) << "\n";
+}
+
+void zsy_test1_union_find() {
+  std::cout << "\n[Test 1 Integrated with Union-Find]:\n";
+  FlowGraph g(12);
+  g.addVertex("S");
+  g.addVertex("C");
+  g.addVertex("B");
+  g.addVertex("E");
+  g.addVertex("A");
+  g.addVertex("D");
+  g.addVertex("H");
+  g.addVertex("K");
+  g.addVertex("F");
+  g.addVertex("G");
+  g.addVertex("J");
+  g.addVertex("I");
+
+  g.addEdge("S", "B");
+  g.addEdge("S", "C");
+  g.addEdge("B", "A");
+  g.addEdge("B", "D");
+  g.addEdge("B", "E");
+  g.addEdge("A", "D");
+  g.addEdge("E", "H");
+  g.addEdge("D", "H");
+  g.addEdge("H", "K");
+  g.addEdge("C", "F");
+  g.addEdge("C", "G");
+  g.addEdge("F", "I");
+  g.addEdge("G", "I");
+  g.addEdge("G", "J");
+  g.addEdge("J", "I");
+  g.addEdge("I", "K");
+  g.addEdge("I", "S");
+  g.addEdge("K", "S");
+  // which matters
+  g.addEdge("H", "B");
+
+  FlowGraph::AdjacentView g_adjview1{g};
+  FlowGraph::AdjacentView g_adjview2{g};
+  g_adjview1.checkCollapsibilitySlowly();
+  std::cout << "\n";
+  g_adjview1.dump();
+  std::cout << "\n";
+
+  g.dfs();
+  g.checkReducibility();
+  g.dumpDot("zsy_test1.dot");
+  std::cout << "\n";
+  g.dumpReductionList();
+  std::cout << "\n";
+  g.doReduceAsList(g_adjview2);
+}
+
 int main() {
   std::cout << "Test Reduciability by zhaosiying12138 from LiuYueCity Academy "
                "of Sciences\n";
   zsy_test1();
   zsy_test2();
   zsy_test3();
+  zsy_unittest_union_find();
+  zsy_test1_union_find();
 
   return 0;
 }
